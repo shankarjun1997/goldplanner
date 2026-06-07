@@ -1,0 +1,14 @@
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: gold
+      POSTGRES_PASSWORD: gold
+      POSTGRES_DB: goldplanner
+    ports:
+      - "5433:5432"
+    volumes:
+      - gold_pg:/var/lib/postgresql/data
+
+volumes:
+  gold_pg:
