@@ -22,3 +22,13 @@ CREATE TABLE IF NOT EXISTS plans (
 );
 
 CREATE INDEX IF NOT EXISTS plans_user_idx ON plans(user_id);
+
+CREATE TABLE IF NOT EXISTS gold_rates (
+  id            SERIAL PRIMARY KEY,
+  karat         INTEGER NOT NULL,
+  rate_per_gram NUMERIC NOT NULL,
+  source        TEXT NOT NULL,
+  fetched_at    TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS gold_rates_karat_idx ON gold_rates(karat, fetched_at DESC);
