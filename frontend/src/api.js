@@ -39,4 +39,38 @@ export const api = {
   deletePlan: (id) => req(`/plans/${id}`, { method: "DELETE" }),
   checkout: (plan) => req("/billing/checkout", { method: "POST", body: { plan } }),
   goldRate: (karat) => req(`/gold/rate?karat=${karat}`),
+
+  // ----- Gold Wealth OS (Phase 1) -----
+  listMembers: () => req("/members"),
+  createMember: (m) => req("/members", { method: "POST", body: m }),
+  updateMember: (id, patch) => req(`/members/${id}`, { method: "PUT", body: patch }),
+  deleteMember: (id) => req(`/members/${id}`, { method: "DELETE" }),
+
+  listAssets: () => req("/assets"),
+  createAsset: (a) => req("/assets", { method: "POST", body: a }),
+  updateAsset: (id, patch) => req(`/assets/${id}`, { method: "PUT", body: patch }),
+  deleteAsset: (id) => req(`/assets/${id}`, { method: "DELETE" }),
+
+  listGoals: () => req("/goals"),
+  createGoal: (g) => req("/goals", { method: "POST", body: g }),
+  updateGoal: (id, patch) => req(`/goals/${id}`, { method: "PUT", body: patch }),
+  deleteGoal: (id) => req(`/goals/${id}`, { method: "DELETE" }),
+
+  networth: () => req("/networth"),
+  networthHistory: () => req("/networth/history"),
+  festivals: () => req("/festivals"),
+
+  listLoans: () => req("/loans"),
+  createLoan: (l) => req("/loans", { method: "POST", body: l }),
+  updateLoan: (id, patch) => req(`/loans/${id}`, { method: "PUT", body: patch }),
+  deleteLoan: (id) => req(`/loans/${id}`, { method: "DELETE" }),
 };
+
+// List endpoints may return a bare array or an enveloped object
+// ({members:[…]}, like /plans returns {plans:[…]}). Accept both.
+export function unwrapList(data, key) {
+  if (Array.isArray(data)) return data;
+  if (data && Array.isArray(data[key])) return data[key];
+  if (data && Array.isArray(data.items)) return data.items;
+  return [];
+}

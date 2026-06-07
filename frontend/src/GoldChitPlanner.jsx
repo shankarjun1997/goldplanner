@@ -1,7 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { useAuth } from "./auth.jsx";
 import { api } from "./api.js";
-import PricingModal from "./PricingModal.jsx";
 import { exportCSV, exportPDF } from "./export.js";
 
 // ---------- helpers ----------
@@ -51,26 +49,8 @@ export function derive(plan) {
   return { schedule, totalContribution, bonusAmount, maturityValue, gramsAtMaturity, rate };
 }
 
-// ---------- root ----------
-export default function GoldChitPlanner() {
-  const { user, loading, login, signup, logout, refresh } = useAuth();
-  const [showUpgrade, setShowUpgrade] = useState(false);
-
-  // After returning from Stripe success_url (?upgraded=1), refresh premium status.
-  useEffect(() => {
-    if (new URLSearchParams(location.search).get("upgraded")) {
-      refresh();
-      window.history.replaceState({}, "", location.pathname);
-    }
-  }, []);
-
-  if (loading) return <div className="gc-center">Loading…</div>;
-  if (!user) return <AuthScreen login={login} signup={signup} />;
-  return <Dashboard user={user} logout={logout} showUpgrade={showUpgrade} setShowUpgrade={setShowUpgrade} />;
-}
-
 // ---------- auth screen ----------
-function AuthScreen({ login, signup }) {
+export function AuthScreen({ login, signup }) {
   const [mode, setMode] = useState("login");
   const [email, setEmail] = useState("");
   const [pw, setPw] = useState("");
@@ -109,8 +89,8 @@ function AuthScreen({ login, signup }) {
   );
 }
 
-// ---------- dashboard ----------
-function Dashboard({ user, logout, showUpgrade, setShowUpgrade }) {
+// ---------- planner (the Plans tab) ----------
+export default function GoldChitPlanner({ user, setShowUpgrade }) {
   const [plans, setPlans] = useState([]);
   const [activeId, setActiveId] = useState(null);
   const [form, setForm] = useState(null); // the editable plan
@@ -217,29 +197,15 @@ function Dashboard({ user, logout, showUpgrade, setShowUpgrade }) {
   };
 
   return (
-    <div className="gc-app">
-      <header className="gc-header">
-        <div className="gc-brand">◆ GoldPlanner</div>
-        <div className="gc-actions">
-          {user.is_premium && <span className="gc-pill premium">Premium</span>}
-          {!user.is_premium && (
-            <button className="gc-pill rec" onClick={() => setShowUpgrade(true)}>★ Upgrade</button>
-          )}
-          {user.is_premium && (
-            <>
-              <button className="gc-icon-btn" onClick={() => onExport("pdf")} title="Export PDF">⤓</button>
-              <button className="gc-icon-btn" onClick={() => onExport("csv")} title="Export CSV">≡</button>
-            </>
-          )}
-          <button className="gc-icon-btn" onClick={logout} title="Sign out">⎋</button>
-        </div>
-      </header>
-
-      <div className="gc-main">
+    <div className="gc-main">
         <aside className="gc-side">
           <div className="gc-side-head">
             <span>Your plans</span>
-            <button className="gc-btn-ghost" onClick={newPlan}>+ New</button>
+            <span style={{ display: "flex", gap: 6 }}>
+              <button className="gc-btn-ghost" onClick={() => onExport("pdf")} title="Export PDF">⤓ PDF</button>
+              <button className="gc-btn-ghost" onClick={() => onExport("csv")} title="Export CSV">≡ CSV</button>
+              <button className="gc-btn-ghost" onClick={newPlan}>+ New</button>
+            </span>
           </div>
           {plans.map((p) => (
             <button
@@ -310,9 +276,6 @@ function Dashboard({ user, logout, showUpgrade, setShowUpgrade }) {
             </>
           )}
         </main>
-      </div>
-
-      {showUpgrade && <PricingModal onClose={() => setShowUpgrade(false)} />}
     </div>
   );
 }
