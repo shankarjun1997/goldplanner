@@ -68,4 +68,15 @@ r.get("/rate", auth, async (req, res) => {
   }
 });
 
+// Header ticker: latest cached 22K & 24K rates for any signed-in user.
+// No provider call, no premium gate. Returns nulls until something is cached.
+r.get("/ticker", auth, async (_req, res) => {
+  const [c22, c24] = await Promise.all([latestCached(22), latestCached(24)]);
+  res.json({
+    rate22: c22 ? Number(c22.rate_per_gram) : null,
+    rate24: c24 ? Number(c24.rate_per_gram) : null,
+    at: c22?.fetched_at || c24?.fetched_at || null,
+  });
+});
+
 export default r;

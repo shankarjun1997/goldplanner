@@ -117,6 +117,19 @@ export default function GoldChitPlanner({ user, setShowUpgrade }) {
   const setRate = (v) => setForm((f) => ({ ...f, rate: v }));
   const d = useMemo(() => (plan ? derive(plan) : null), [plan]);
 
+  // Auto-fill the live rate for brand-new plans (premium) so the summary isn't 0.
+  useEffect(() => {
+    if (!user?.is_premium || !form || form.id != null || form.rate > 0) return;
+    let alive = true;
+    (async () => {
+      try {
+        const { ratePerGram } = await api.goldRate(form.karat);
+        if (alive) setForm((f) => (f && f.id == null && !(f.rate > 0) ? { ...f, rate: ratePerGram } : f));
+      } catch { /* leave 0; user can type a rate */ }
+    })();
+    return () => { alive = false; };
+  }, [form?.id, form?.karat, user]);
+
   const selectPlan = (id) => {
     const p = plans.find((x) => x.id === id);
     setActiveId(id);
@@ -233,8 +246,12 @@ export default function GoldChitPlanner({ user, setShowUpgrade }) {
                 <div className="gc-stat"><span>Total contribution</span><b>{fmt(d.totalContribution)}</b></div>
                 <div className="gc-stat"><span>Bonus</span><b>{fmt(d.bonusAmount)}</b></div>
                 <div className="gc-stat hl"><span>Maturity value</span><b>{fmt(d.maturityValue)}</b></div>
-                <div className="gc-stat"><span>Gold at maturity</span><b>{d.gramsAtMaturity.toFixed(2)} g</b></div>
+                <div className="gc-stat"><span>Gold at maturity</span><b>{d.rate > 0 ? d.gramsAtMaturity.toFixed(2) + " g" : "—"}</b></div>
               </section>
+
+              {d.rate <= 0 && (
+                <div className="gc-note">Set a gold rate (or use the live rate) to see grams at maturity.</div>
+              )}
 
               <section className="gc-card">
                 <div className="gc-card-head">
@@ -286,18 +303,20 @@ function Setup({ plan, karat, setForm, useLiveRate, saving, save }) {
     const v = e.target.type === "number" ? Number(e.target.value) : e.target.value;
     setForm((f) => ({ ...f, [k]: v }));
   };
+  const rateInvalid = !(plan.rate > 0);
   return (
     <section className="gc-card">
       <h2 className="gc-h2">Setup</h2>
       <div className="gc-grid">
         <label className="gc-field"><span>Plan name</span>
-          <input value={plan.name} onChange={set("name")} /></label>
+          <input value={plan.name} onChange={set("name")} onFocus={(e) => e.target.select()} /></label>
         <label className="gc-field"><span>Monthly installment (₹)</span>
           <input type="number" value={plan.monthlyAmount} onChange={set("monthlyAmount")} /></label>
         <label className="gc-field"><span>Months</span>
           <input type="number" value={plan.months} onChange={set("months")} /></label>
         <label className="gc-field"><span>Bonus installments</span>
-          <input type="number" step="0.1" value={plan.bonusInstallments} onChange={set("bonusInstallments")} /></label>
+          <input type="number" step="0.1" value={plan.bonusInstallments} onChange={set("bonusInstallments")} />
+          <small className="gc-hint">Most chits add 1 free installment as a maturity bonus.</small></label>
         <label className="gc-field"><span>Purity</span>
           <select value={plan.karat} onChange={set("karat")}>
             <option value={22}>22K</option>
@@ -306,10 +325,11 @@ function Setup({ plan, karat, setForm, useLiveRate, saving, save }) {
         <label className="gc-field"><span>Start month</span>
           <input type="month" value={plan.startYm} onChange={set("startYm")} /></label>
         <label className="gc-field"><span>Gold rate (₹/g)</span>
-          <input type="number" value={plan.rate} onChange={set("rate")} />
+          <input type="number" value={plan.rate} onChange={set("rate")} className={rateInvalid ? "gc-input-warn" : ""} />
           <button type="button" className="gc-btn-ghost" onClick={useLiveRate} style={{ marginTop: 6 }}>
             ↻ Use live {karat}K rate
-          </button></label>
+          </button>
+          {rateInvalid && <small className="gc-field-warn">Enter a rate or use the live rate.</small>}</label>
       </div>
       <button className="gc-btn-primary" disabled={saving} onClick={save}>
         {saving ? "Saving…" : plan.id == null ? "Create plan" : "Save changes"}

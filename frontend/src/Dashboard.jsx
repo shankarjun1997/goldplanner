@@ -11,23 +11,44 @@ export default function Dashboard({ onGoTo }) {
   const [history, setHistory] = useState([]);
   const [festivals, setFestivals] = useState([]);
   const [goals, setGoals] = useState([]);
+  const [counts, setCounts] = useState({ members: 0, plans: 0, assets: 0 });
   const [loading, setLoading] = useState(true);
+  const [dismissed, setDismissed] = useState(() => localStorage.getItem("gp_onboard") === "done");
 
   useEffect(() => {
     (async () => {
-      const [n, h, f, g] = await Promise.allSettled([
+      const [n, h, f, g, m, p, a] = await Promise.allSettled([
         api.networth(),
         api.networthHistory(),
         api.festivals(),
         api.listGoals(),
+        api.listMembers(),
+        api.listPlans(),
+        api.listAssets(),
       ]);
       if (n.status === "fulfilled") setNet(n.value);
       if (h.status === "fulfilled") setHistory(unwrapList(h.value, "history"));
       if (f.status === "fulfilled") setFestivals(unwrapList(f.value, "festivals"));
       if (g.status === "fulfilled") setGoals(unwrapList(g.value, "goals"));
+      setCounts({
+        members: m.status === "fulfilled" ? unwrapList(m.value, "members").length : 0,
+        plans: p.status === "fulfilled" ? unwrapList(p.value, "plans").length : 0,
+        assets: a.status === "fulfilled" ? unwrapList(a.value, "assets").length : 0,
+      });
       setLoading(false);
     })();
   }, []);
+
+  const steps = [
+    { id: "member", label: "Add yourself", done: counts.members > 0, tab: "vault" },
+    { id: "plan", label: "Create a gold plan", done: counts.plans > 0, tab: "plans" },
+    { id: "asset", label: "Add your first asset", done: counts.assets > 0, tab: "vault" },
+    { id: "goal", label: "Set a savings goal", done: goals.length > 0, tab: "goals" },
+  ];
+  const doneCount = steps.filter((s) => s.done).length;
+  const strength = Math.round((doneCount / steps.length) * 100);
+  const showOnboard = !dismissed && doneCount < steps.length;
+  const dismiss = () => { localStorage.setItem("gp_onboard", "done"); setDismissed(true); };
 
   const nextGoals = useMemo(
     () =>
@@ -42,6 +63,35 @@ export default function Dashboard({ onGoTo }) {
 
   return (
     <div className="gc-content" style={{ marginTop: 20 }}>
+      {/* ----- onboarding journey ----- */}
+      {showOnboard && (
+        <section className="gc-card gc-onboard">
+          <div className="gc-onboard-head">
+            <div>
+              <div className="gc-hero-label">Your Gold Journey</div>
+              <div className="gc-onboard-strength">Profile strength <b>{strength}%</b></div>
+            </div>
+            <button className="gc-mini-btn" title="Dismiss" onClick={dismiss}>✕</button>
+          </div>
+          <div className="gc-progress" style={{ margin: "12px 0 14px" }}>
+            <div className="gc-progress-fill" style={{ width: strength + "%" }} />
+          </div>
+          <div className="gc-onboard-steps">
+            {steps.map((s) => (
+              <button
+                key={s.id}
+                className={"gc-step" + (s.done ? " done" : "")}
+                onClick={() => !s.done && onGoTo?.(s.tab)}
+                disabled={s.done}
+              >
+                <span className="gc-step-check">{s.done ? "✓" : "○"}</span>
+                <span>{s.label}</span>
+              </button>
+            ))}
+          </div>
+        </section>
+      )}
+
       {/* ----- net worth hero ----- */}
       <section className="gc-card gc-hero">
         <div className="gc-hero-label">Gold Net Worth</div>
@@ -71,7 +121,7 @@ export default function Dashboard({ onGoTo }) {
       {/* ----- growth chart ----- */}
       <section className="gc-card">
         <h2 className="gc-h2"><TrendingUp size={15} style={{ verticalAlign: -2 }} /> Growth</h2>
-        <GrowthChart points={history} />
+        <GrowthChart points={history} onGoTo={onGoTo} hasAssets={counts.assets > 0} />
       </section>
 
       <div className="gc-dash-grid">
@@ -118,13 +168,21 @@ export default function Dashboard({ onGoTo }) {
 }
 
 // ---------- hand-rolled SVG line chart ----------
-function GrowthChart({ points }) {
+function GrowthChart({ points, onGoTo, hasAssets }) {
   const data = (points || [])
     .filter((p) => p && p.totalValue != null)
     .map((p) => ({ at: p.at, v: Number(p.totalValue) }));
 
   if (data.length < 2) {
-    return <div className="gc-chart-empty">Rate history builds up as you use the app</div>;
+    return (
+      <div className="gc-chart-empty">
+        <TrendingUp size={24} style={{ opacity: 0.5 }} />
+        <div>Your wealth growth chart appears here as gold rates update over time.</div>
+        {!hasAssets && (
+          <button className="gc-btn-ghost" onClick={() => onGoTo?.("vault")}>Add your first asset →</button>
+        )}
+      </div>
+    );
   }
 
   const W = 640, H = 180, PAD = { t: 12, r: 12, b: 22, l: 12 };

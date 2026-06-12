@@ -19,6 +19,15 @@ export default function App() {
   const { user, loading, login, signup, logout, refresh } = useAuth();
   const [showUpgrade, setShowUpgrade] = useState(false);
   const [tab, setTab] = useState(null); // null until we know the default
+  const [ticker, setTicker] = useState(null);
+
+  // Live gold-rate ticker for the header (cached server-side; no provider hit).
+  useEffect(() => {
+    if (!user) return;
+    let alive = true;
+    api.goldTicker().then((t) => alive && setTicker(t)).catch(() => {});
+    return () => { alive = false; };
+  }, [user]);
 
   // After returning from Stripe success_url (?upgraded=1), refresh premium status.
   useEffect(() => {
@@ -54,6 +63,14 @@ export default function App() {
       <header className="gc-header">
         <div className="gc-brand">◆ GoldPlanner</div>
         <div className="gc-actions">
+          {ticker?.rate22 ? (
+            <span
+              className="gc-pill ticker"
+              title={"22K gold rate" + (ticker.at ? " · as of " + new Date(ticker.at).toLocaleDateString("en-IN") : "")}
+            >
+              22K ₹{new Intl.NumberFormat("en-IN").format(ticker.rate22)}/g
+            </span>
+          ) : null}
           {user.is_premium && <span className="gc-pill premium">Premium</span>}
           {!user.is_premium && (
             <button className="gc-pill rec" onClick={() => setShowUpgrade(true)}>★ Upgrade</button>

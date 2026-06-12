@@ -39,6 +39,7 @@ export const api = {
   deletePlan: (id) => req(`/plans/${id}`, { method: "DELETE" }),
   checkout: (plan) => req("/billing/checkout", { method: "POST", body: { plan } }),
   goldRate: (karat) => req(`/gold/rate?karat=${karat}`),
+  goldTicker: () => req("/gold/ticker"),
 
   // ----- Gold Wealth OS (Phase 1) -----
   listMembers: () => req("/members"),
