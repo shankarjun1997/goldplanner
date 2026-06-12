@@ -1,53 +1,10 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { api } from "./api.js";
 import { exportCSV, exportPDF } from "./export.js";
+import { nowYm, normalizePlan, derive } from "./chitMath.js";
 
 // ---------- helpers ----------
 const fmt = (n) => "₹" + new Intl.NumberFormat("en-IN").format(Math.round(n || 0));
-
-const nowYm = () => {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
-};
-function monthLabel(ym) {
-  const [y, m] = ym.split("-").map(Number);
-  return new Date(y, m - 1, 1).toLocaleDateString("en-IN", { month: "short", year: "numeric" });
-}
-function addMonths(ym, n) {
-  const [y, m] = ym.split("-").map(Number);
-  const d = new Date(y, m - 1 + n, 1);
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
-}
-
-// Server rows use snake_case; the UI works in camelCase.
-function normalize(row) {
-  return {
-    id: row.id,
-    name: row.name,
-    karat: Number(row.karat),
-    monthlyAmount: Number(row.monthly_amount),
-    months: Number(row.months),
-    bonusInstallments: Number(row.bonus_installments),
-    startYm: row.start_ym,
-    rate: Number(row.current_rate || 0),
-    payments: row.payments || {},
-  };
-}
-
-// Classic gold-chit math. Pure — also used by the exporters.
-export function derive(plan) {
-  const schedule = Array.from({ length: plan.months }, (_, i) => {
-    const key = addMonths(plan.startYm, i);
-    return { index: i + 1, key, label: monthLabel(key) };
-  });
-  const totalContribution = plan.monthlyAmount * plan.months;
-  const bonusAmount = plan.monthlyAmount * plan.bonusInstallments;
-  const maturityValue = totalContribution + bonusAmount;
-  const paidRates = schedule.map((s) => plan.payments?.[s.key]?.rate).filter((x) => x > 0);
-  const rate = paidRates.length ? paidRates[paidRates.length - 1] : plan.rate;
-  const gramsAtMaturity = rate ? maturityValue / rate : 0;
-  return { schedule, totalContribution, bonusAmount, maturityValue, gramsAtMaturity, rate };
-}
 
 // ---------- auth screen ----------
 export function AuthScreen({ login, signup }) {
@@ -98,7 +55,7 @@ export default function GoldChitPlanner({ user, setShowUpgrade }) {
 
   const reloadList = async () => {
     const { plans } = await api.listPlans();
-    return plans.map(normalize);
+    return plans.map(normalizePlan);
   };
 
   useEffect(() => {
@@ -167,12 +124,12 @@ export default function GoldChitPlanner({ user, setShowUpgrade }) {
       };
       if (plan.id == null) {
         const { plan: created } = await api.createPlan(payload);
-        const n = normalize(created);
+        const n = normalizePlan(created);
         setForm(n);
         setActiveId(n.id);
       } else {
         const { plan: updated } = await api.updatePlan(plan.id, payload);
-        setForm(normalize(updated));
+        setForm(normalizePlan(updated));
       }
       setPlans(await reloadList());
     } catch (e) {
@@ -186,9 +143,18 @@ export default function GoldChitPlanner({ user, setShowUpgrade }) {
   const togglePaid = (key) => {
     setForm((f) => {
       const cur = f.payments[key];
-      const next = cur?.paid ? { ...cur, paid: false } : { paid: true, rate: f.rate || 0 };
+      const next = cur?.paid ? { ...cur, paid: false } : { ...cur, paid: true, rate: cur?.rate || f.rate || 0 };
       return { ...f, payments: { ...f.payments, [key]: next } };
     });
+  };
+
+  // Log the actual rate paid / a note against one month (#4 — real chits are
+  // tracked retroactively).
+  const setPayment = (key, patch) => {
+    setForm((f) => ({
+      ...f,
+      payments: { ...f.payments, [key]: { ...(f.payments[key] || {}), ...patch } },
+    }));
   };
 
   // "Use live rate" — premium only.
@@ -246,7 +212,9 @@ export default function GoldChitPlanner({ user, setShowUpgrade }) {
                 <div className="gc-stat"><span>Total contribution</span><b>{fmt(d.totalContribution)}</b></div>
                 <div className="gc-stat"><span>Bonus</span><b>{fmt(d.bonusAmount)}</b></div>
                 <div className="gc-stat hl"><span>Maturity value</span><b>{fmt(d.maturityValue)}</b></div>
-                <div className="gc-stat"><span>Gold at maturity</span><b>{d.rate > 0 ? d.gramsAtMaturity.toFixed(2) + " g" : "—"}</b></div>
+                <div className="gc-stat"><span>Paid so far</span><b>{d.paidCount}/{plan.months} · {fmt(d.paidAmount)}</b></div>
+                <div className="gc-stat"><span>Gold accumulated</span><b>{d.gramsAccumulated > 0 ? d.gramsAccumulated.toFixed(2) + " g" : "—"}</b></div>
+                <div className="gc-stat"><span>Projected at maturity</span><b>{d.rate > 0 ? d.gramsProjected.toFixed(2) + " g" : "—"}</b></div>
               </section>
 
               {d.rate <= 0 && (
@@ -265,27 +233,48 @@ export default function GoldChitPlanner({ user, setShowUpgrade }) {
                 <div className="gc-table-wrap">
                   <table className="gc-table">
                     <thead>
-                      <tr><th>#</th><th>Month</th><th>Installment</th><th>Rate/g</th><th>Grams</th><th>Status</th></tr>
+                      <tr><th>#</th><th>Month</th><th>Installment</th><th>Rate/g paid</th><th>Grams</th><th>Note</th><th>Status</th></tr>
                     </thead>
                     <tbody>
-                      {d.schedule.map((s) => {
-                        const p = plan.payments[s.key];
-                        const g = p?.paid && p.rate > 0 ? (plan.monthlyAmount / p.rate).toFixed(2) : "—";
-                        return (
-                          <tr key={s.key} className={p?.paid ? "paid" : ""}>
-                            <td>{s.index}</td>
-                            <td>{s.label}</td>
-                            <td>{fmt(plan.monthlyAmount)}</td>
-                            <td>{p?.rate ? fmt(p.rate) : "—"}</td>
-                            <td>{g}</td>
-                            <td>
-                              <button className={"gc-toggle" + (p?.paid ? " on" : "")} onClick={() => togglePaid(s.key)}>
-                                {p?.paid ? "Paid" : "Mark paid"}
-                              </button>
-                            </td>
-                          </tr>
-                        );
-                      })}
+                      {d.rows.map((r) => (
+                        <tr key={r.key} className={r.paid ? "paid" : ""}>
+                          <td>{r.index}</td>
+                          <td>{r.label}</td>
+                          <td>{fmt(plan.monthlyAmount)}</td>
+                          <td>
+                            {r.paid ? (
+                              <input
+                                type="number"
+                                className="gc-cell-input"
+                                value={plan.payments[r.key]?.rate || ""}
+                                placeholder="₹/g"
+                                onChange={(e) => setPayment(r.key, { rate: e.target.value === "" ? 0 : Number(e.target.value) })}
+                              />
+                            ) : (
+                              "—"
+                            )}
+                          </td>
+                          <td>{r.grams != null ? r.grams.toFixed(2) : "—"}</td>
+                          <td>
+                            {r.paid ? (
+                              <input
+                                className="gc-cell-input note"
+                                value={plan.payments[r.key]?.note || ""}
+                                placeholder="e.g. paid at GRT"
+                                maxLength={120}
+                                onChange={(e) => setPayment(r.key, { note: e.target.value })}
+                              />
+                            ) : (
+                              ""
+                            )}
+                          </td>
+                          <td>
+                            <button className={"gc-toggle" + (r.paid ? " on" : "")} onClick={() => togglePaid(r.key)}>
+                              {r.paid ? "Paid" : "Mark paid"}
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
                     </tbody>
                   </table>
                 </div>
