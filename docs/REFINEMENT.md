@@ -8,9 +8,17 @@ the actual code, and a prioritized list of what to build next.
 - **Shipped (Phase 1):** 4-tab app (Dashboard, Plans, Vault, Goals). Backend engines
   for members, assets, goals, net worth, festivals, loans. Gold-rate cache (1h TTL).
   Verified: backend syntax, pg-mem schema test, frontend build all pass.
-- **Not yet on GitHub:** Phase 1 commit is blocked by stale git lock files on the Mac;
-  run `rm -f .git/HEAD.lock .git/index.lock && git add -A && git commit && git push`.
+- **On GitHub:** `origin/main` tracks github.com/shankarjun1997/goldplanner (the
+  earlier git-lock blocker is resolved).
 - **Stack:** Express + Postgres + Stripe; React + Vite, hand-written CSS, lucide icons.
+
+## Status — 2026-06-12
+
+- ✅ Shipped in refinement sprint 1 (`4aabc9b`): #1 rate autofill + validation,
+  #2 onboarding checklist, #3 actionable empty states, #7 header rate ticker.
+- 🔜 Sprint A (in progress): #4 per-row payment tracking, #5 goal-to-plan linking.
+- Phase 4 (multi-asset, storage/evidence, wealth score, insurance, locker, monthly
+  report) now specced in PRODUCT_SPEC.md with sprint order B/C/D.
 
 ## Critique reconciled — already built, not missing
 

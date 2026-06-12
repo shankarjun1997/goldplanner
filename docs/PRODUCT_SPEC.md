@@ -3,6 +3,9 @@
 Positioning: from "chit calculator" to **Personal Gold Wealth Management for Indian
 Families** — plan, track, gift, and preserve gold across generations.
 
+Long-term positioning (decided 2026-06-12): **Family Wealth OS for Indian
+families** — gold remains the wedge; family wealth becomes the platform.
+
 ## Core architectural insight
 
 The 15 proposed features collapse into **4 engines**. Don't build 15 features;
@@ -163,10 +166,40 @@ LineChart (use recharts), FileDrop, OccasionPicker. Reuse existing tokens
 10. Chit marketplace (static curated list of GRT/Tanishq/Lalitha/Kalyan schemes first; comparison calculator using existing chit math — no partnerships needed for v1)
 11. Wealth analytics (allocation by member/kind, CAGR vs FD/SIP comparison)
 
+**Phase 4 — Wealth Platform (decided 2026-06-12)**
+12. **Multi-asset wealth engine** — `asset_type` on assets
+    (GOLD|SILVER|MUTUAL_FUND|STOCK|FD|CASH|REAL_ESTATE|CRYPTO|OTHER). Makes family
+    net worth meaningful; unlocks allocation charts, gold-concentration analysis,
+    cross-asset planning. Highest-ROI Phase 4 item.
+13. **Storage & evidence** — `photo_url`, `invoice_url`, `storage_location` on
+    assets ("Home Locker", "SBI Locker", "Mother's House"). Solves the real
+    where-is-it family problem.
+14. **Family Wealth Score** (premium) — 0–100 across gold holdings, emergency fund,
+    insurance, investments, debt, with per-pillar breakdown. Signature retention
+    feature.
+15. **Insurance tracker** (premium) — term/health/gold policies: policy number,
+    premium, renewal date, coverage; renewal reminders; coverage-gap flags.
+16. **Locker management** — bank, locker number, annual fee, renewal date +
+    reminders. Pairs with `storage_location`.
+17. **Monthly Wealth Report** (premium) — email + PDF: net-worth change, gold
+    accumulation, goal progress, upcoming festivals, insurance renewals,
+    recommended actions.
+
+**Sprint order (2026-06-12):** Sprint A = refinement #4 per-row payment tracking
++ #5 goal-to-plan linking → Sprint B = #12 + #13 → Sprint C = #14 + #15 →
+Sprint D = #17. **Marketplace and enterprise/white-label stay parked** until
+traction proves out (≈1,000+ active users, demonstrated retention and
+willingness to pay).
+
 **Deliberately cut / changed:**
 - **Price prediction (₹ range + confidence %)** — cut. Predictions will be wrong,
   trust is the product. Replaced by historical growth chart + festival-seasonality
   facts, which is what users actually use it for.
+- **Forecasting stays cut (re-affirmed 2026-06-12).** No "gold will reach ₹X in
+  Y years" anywhere in the product — including the AI advisor. The planning-side
+  replacement is **scenario planning** on goals: project a goal's future cost at
+  three fixed CAGRs — Conservative 5% / Historical-average 8% / Aggressive 12%
+  ("at 8%, the wedding gold may cost ₹24L"). Planning, not prediction.
 - **15 features → 4 tabs** — separate "Daughter planner / Wedding planner / Coin
   planner" nav items would make a 6-item app feel like 15 half-built ones.
   They're presets in the Goal create flow instead.
